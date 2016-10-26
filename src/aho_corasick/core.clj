@@ -87,15 +87,15 @@
                                        first))))))]
           (recur q ft))))))
 
-(= (failure-transitions (goto-graph #{"he" "she" "his" "hers"}))
+(= (failure-transitions (goto-graph ["he" "she" "his" "hers"]))
    {:max-state 9,
     :states
-    {0 {\h 1, \s 7},
-     1 {\e 2, \i 5},
-     2 {\r 3},
-     3 {\s 4},
-     5 {\s 6},
-     7 {\h 8},
-     8 {\e 9}},
-    :output {4 #{"hers"}, 6 #{"his"}, 9 #{"she"}, 2 #{"he"}},
-    :failure {1 0, 7 0, 2 0, 5 0, 8 1, 3 0, 6 7, 9 2, 4 7}})
+    {0 {\h 1, \s 3},
+     1 {\e 2, \i 6},
+     3 {\h 4},
+     4 {\e 5},
+     6 {\s 7},
+     2 {\r 8},
+     8 {\s 9}},
+    :output {2 #{"he"}, 5 #{"she"}, 7 #{"his"}, 9 #{"hers"}},
+    :failure {1 0, 3 0, 2 0, 6 0, 4 1, 8 0, 7 3, 5 2, 9 3}})
