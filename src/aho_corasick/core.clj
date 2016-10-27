@@ -1,13 +1,5 @@
-(ns aho-corasick.core)
-
-(def start-state 0)
-
-(def fail-state? nil?)
-
-(defn- gq
-  "graph query function used during goto graph construction"
-  [gtab state c]
-  (get-in gtab [state c]))
+(ns aho-corasick.core
+  (:require [aho-corasick.state :as s]))
 
 (defn- gex
   "graph path extending function used during goto graph construction"
@@ -20,17 +12,9 @@
   [otab state kw]
   (update otab state (fnil conj #{}) kw))
 
-(defn- search-keyword [gtab state xs]
-  (if (empty? xs)
-    [state ()]
-    (let [state' (gq gtab state (first xs))]
-      (if (fail-state? state')
-        [state xs]
-        (recur gtab state' (rest xs))))))
-
 (defn enter-keyword [{gtab :states otab :output :as g} kw]
   (let [[s kw']
-        (search-keyword gtab start-state kw)
+        (s/search-keyword gtab s/start kw)
 
         [result-graph result-state]
         (reduce
@@ -44,14 +28,8 @@
     (update result-graph :output gout result-state kw)))
 
 (defn goto-graph [keyword-set]
-  (let [init-graph {:max-state start-state :states {}}]
+  (let [init-graph {:max-state s/start :states {}}]
     (reduce enter-keyword init-graph keyword-set)))
-
-(defn g-query [gtab state c]
-  (let [r (gq gtab state c)]
-    (if (and (= state start-state) (fail-state? r))
-      start-state
-      r)))
 
 (defn output [g state]
   (get-in g [:output state]))
@@ -59,13 +37,10 @@
 (defn f [g state]
   (get-in g [:failure state]))
 
-(defn- depth-1-states [gtab]
-  (vals (gtab start-state)))
-
 (defn- find-fail-state [gtab ftab r a]
   (->> (rest (iterate ftab r))
-       (map #(g-query gtab % a))
-       (drop-while fail-state?)
+       (map #(s/goto gtab % a))
+       (drop-while s/fail?)
        first))
 
 (defn- init-ftab [d1ss]
@@ -75,27 +50,28 @@
   (fn [otab kw]
     (gout otab s kw)))
 
-(defn- failure-transitions [g]
-  (let [gtab (get g :states)
-        d1ss (depth-1-states gtab)]
+(defn- failure-transitions [{gtab :states otab :output :as g}]
+  (let [d1ss      (s/depth-1s gtab)
+        symbols   (comp keys gtab)
+        trans     (partial s/goto gtab)
+        fallback  (partial find-fail-state gtab)
+        expend-at (fn [r [q f o] a]
+                    (let [s      (trans r a)
+                          fs     (fallback f r a)
+                          add-to (add-output-to s)]
+                      [(conj q s)
+                       (assoc f s fs)
+                       (reduce add-to o (get o fs))]))]
     (loop [queue (into clojure.lang.PersistentQueue/EMPTY d1ss)
            ftab  (init-ftab d1ss)
-           otab  (get g :output)]
+           otab  otab]
       (if (empty? queue)
         (assoc g :failure ftab :output otab)
         (let [r (peek queue)
-              xs (keys (gtab r))
-
-              [queue' ftab' otab']
-              (reduce
-               (fn [[q ft ot] x]
-                 (let [s (g-query gtab r x)
-                       fts (find-fail-state gtab ft r x)
-                       add-output (add-output-to s)]
-                   [(conj q s)
-                    (assoc ft s fts)
-                    (reduce add-output ot (get ot fts))]))
-               [(pop queue) ftab otab] xs)]
+              [queue'
+               ftab'
+               otab'] (reduce (partial expend-at r)
+                              [(pop queue) ftab otab] (symbols r))]
           (recur queue' ftab' otab'))))))
 
 (= (failure-transitions (goto-graph ["he" "she" "his" "hers"]))
