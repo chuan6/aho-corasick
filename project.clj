@@ -1,4 +1,4 @@
-(defproject aho-corasick "0.1.0-SNAPSHOT"
+(defproject aho-corasick "1.0.0"
   :description "A simple Aho-Corasick implementation in Clojure"
   :url "https://github.com/chuan6/aho-corasick"
   :license {:name "Eclipse Public License"
